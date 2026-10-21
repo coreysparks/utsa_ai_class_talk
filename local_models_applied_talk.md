@@ -1,31 +1,3 @@
-<!--
-PREPARATION NOTES FOR COREY (delete this block before you share the file)
-
-Still to confirm, marked [CONFIRM] in the text:
-  1. Which local models actually ran. Neither the Claude chats nor the ChatGPT notes verify the model names.
-     The model names in the appendix are common public examples, not a record of what you used.
-  2. The business question and the decision the resume segmentation fed into. Neither source records an outcome.
-  3. Whether the "customer sentiment" work you described in the Wells Fargo interview prep was the resume
-     pipeline or a separate corpus. Resumes do not carry sentiment, so these may be two different strands.
-     The draft treats them as possibly separate. Fix section 4.4 to match what happened.
-
-Where the two sources disagree or differ:
-  The first draft said the market analysis classified sentiment in feedback text with a small generative model
-  and JSON output. The ChatGPT notes show a resume corpus, a zero-shot classifier, and sentence embeddings with
-  clustering. The ChatGPT notes are more specific, so the resume pipeline is now the main example. The generative
-  JSON pattern moved to Appendix B as a related technique.
-
-Private source links (from the ChatGPT notes; do not put these on slides):
-  Segmentation persona analysis: https://chatgpt.com/g/g-p-68ffd9f48414819188522e17c119c5ed/c/68ffda4f-7490-832f-b449-badf6d0bc7b8
-  Resume classification workflow: https://chatgpt.com/g/g-p-68ffd9f48414819188522e17c119c5ed/c/6900f105-a914-8324-8418-90c863755601
-  ChatGPT in Work Tasks: https://chatgpt.com/c/698ba50d-5988-8330-b060-500bb41701e6
-  Redshift cohort query: https://chatgpt.com/g/g-p-686bd10d1a5c81918ccbea7218318582/c/695bf05b-f960-832c-8c20-6f066de571fe
-  SQL query for wages: https://chatgpt.com/g/g-p-686bd10d1a5c81918ccbea7218318582/c/68f6704e-ba30-8333-ae29-3e2ecf24cfcc
-  Convert SQL to dbplyr: https://chatgpt.com/g/g-p-686bd10d1a5c81918ccbea7218318582/c/6877f3b6-9c4c-8000-94f1-89216b824120
-  Synthetic data creation: https://chatgpt.com/g/g-p-684741c5f78c819180d38fc8a8f71fe2/c/68924ecb-18f8-8329-bc87-ad92005fca8d
-  Generate synthetic wage data: https://chatgpt.com/g/g-p-686bd10d1a5c81918ccbea7218318582/c/68f78ce9-8290-8326-9070-4b0b26a606a0
-  Synthetic data methods overview: https://chatgpt.com/g/g-p-6914deb6b6d881918250f585845a03fc/c/6914df1e-f248-8328-b8b2-64ece5badcd7
--->
 
 # Small Models, Large Data, and the Unglamorous Work in Between
 
