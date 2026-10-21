@@ -1,0 +1,122 @@
+/*-- scss:defaults --*/
+
+// UTSA brand palette (MarCom brand guidelines)
+$utsa-midnight: #032044;
+$utsa-orange: #F15A22;
+$utsa-orange-a11y: #D3430D;
+$utsa-river-mist: #C8DCFF;
+$utsa-talavera: #265BF7;
+$utsa-clay: #DBB485;
+$utsa-brass: #A06620;
+$utsa-limestone: #F8F4F1;
+$utsa-concrete: #EBE6E2;
+$utsa-smoke: #D5CFC8;
+$utsa-white: #FFFFFF;
+
+$body-bg: $utsa-white;
+$body-color: $utsa-midnight;
+$link-color: $utsa-talavera;
+$selection-bg: $utsa-river-mist;
+
+$presentation-heading-color: $utsa-midnight;
+$presentation-heading-font-weight: 700;
+$presentation-font-size-root: 34px;
+$presentation-h2-font-size: 1.45em;
+
+$code-block-bg: $utsa-limestone;
+$code-block-border-color: $utsa-smoke;
+$code-color: $utsa-midnight;
+
+/*-- scss:rules --*/
+
+.reveal h2 {
+  border-bottom: 4px solid $utsa-orange;
+  padding-bottom: 0.15em;
+  margin-bottom: 0.6em;
+}
+
+// Title slide and section slides on Midnight
+#title-slide,
+.reveal section.section-slide {
+  background-color: $utsa-midnight;
+}
+.reveal .slide-background.has-dark-background,
+.reveal .slide-background.section-bg {
+  background-color: $utsa-midnight;
+}
+.reveal .has-dark-background,
+.reveal .has-dark-background h1,
+.reveal .has-dark-background h2,
+.reveal .has-dark-background p {
+  color: $utsa-white;
+}
+.reveal .has-dark-background h1,
+.reveal .has-dark-background h2 {
+  border-bottom-color: $utsa-orange;
+}
+.reveal .has-dark-background .subtle {
+  color: $utsa-river-mist;
+}
+
+// Large accent statement
+.reveal .big-claim {
+  font-size: 1.35em;
+  font-weight: 700;
+  color: $utsa-midnight;
+  line-height: 1.25;
+}
+.reveal .accent {
+  color: $utsa-orange-a11y;
+  font-weight: 700;
+}
+
+// Panels for column layouts
+.reveal .panel {
+  background: $utsa-limestone;
+  border-top: 6px solid $utsa-orange;
+  padding: 0.6em 0.8em;
+  height: 100%;
+  font-size: 0.8em;
+}
+.reveal .panel .panel-title {
+  display: block;
+  margin-bottom: 0.4em;
+  font-size: 1.15em;
+  font-weight: 700;
+  line-height: 1.2;
+  color: $utsa-midnight;
+}
+.reveal .panel.blue { border-top-color: $utsa-talavera; }
+.reveal .panel.clay { border-top-color: $utsa-brass; }
+
+// Notes to self that must be confirmed before the talk
+.reveal .confirm {
+  font-size: 0.55em;
+  color: $utsa-brass;
+  border-left: 4px solid $utsa-clay;
+  padding-left: 0.5em;
+  margin-top: 1em;
+}
+
+.reveal .small-text { font-size: 0.7em; }
+
+// Stretch a short mermaid flowchart across the slide
+.reveal .wide-diagram .cell-output-display svg,
+.reveal .wide-diagram svg[id^="mermaid"] {
+  width: 100% !important;
+  max-width: none !important;
+  height: auto !important;
+}
+.reveal .tiny-code pre code { font-size: 0.6em; line-height: 1.3; }
+
+.reveal table th {
+  background: $utsa-midnight;
+  color: $utsa-white;
+}
+.reveal table tr:nth-child(even) td { background: $utsa-concrete; }
+
+.reveal .slide-number,
+.reveal .footer {
+  color: $utsa-midnight;
+}
+.reveal .progress span { background: $utsa-orange; }

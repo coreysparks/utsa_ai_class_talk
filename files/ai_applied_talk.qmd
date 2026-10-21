@@ -1,0 +1,879 @@
+---
+title: "Small Models, Large Data, and the Unglamorous Work in Between"
+subtitle: "AI and machine learning in applied settings"
+author: "Corey Sparks"
+institute: "Department of Sociology and Demography, UT San Antonio"
+date: last-modified
+format:
+  revealjs:
+    theme: [default, utsa-slides.scss]
+    slide-number: true
+    embed-resources: true
+    code-line-numbers: false
+    highlight-style: github
+    transition: none
+    width: 1280
+    height: 720
+    footer: "Sparks · AI in applied settings"
+    title-slide-attributes:
+      data-background-color: "#032044"
+execute:
+  engine: jupyter
+  echo: true
+  warning: false
+  message: false
+jupyter: python3
+# BEFORE THE TALK (YAML comments do not render)
+# Model names, corpora, and failure examples come from the user_seg repo.
+# Still open: the number of resumes in the full cv_resume run (not in the local repo).
+# Do not show anything from statements_summary_report.* or personas_summary.csv:
+# the model-written summaries name real applicants.
+# Press "s" during the talk to open speaker notes.
+---
+
+```{python}
+#| label: setup
+#| include: false
+import numpy as np
+import pandas as pd
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+
+UTSA = {
+    "midnight": "#032044", "orange": "#F15A22", "river_mist": "#C8DCFF",
+    "talavera_blue": "#265BF7", "mission_clay": "#DBB485", "brass": "#A06620",
+    "limestone": "#F8F4F1", "concrete": "#EBE6E2", "smoke": "#D5CFC8",
+    "white": "#FFFFFF", "accessible_orange": "#D3430D",
+}
+UTSA_DISCRETE = [UTSA[k] for k in ("midnight", "orange", "talavera_blue",
+                 "mission_clay", "brass", "river_mist", "smoke")]
+mpl.rcParams.update({
+    "axes.prop_cycle": mpl.cycler(color=UTSA_DISCRETE),
+    "text.color": UTSA["midnight"], "axes.labelcolor": UTSA["midnight"],
+    "xtick.color": UTSA["midnight"], "ytick.color": UTSA["midnight"],
+    "axes.edgecolor": UTSA["smoke"], "grid.color": UTSA["smoke"],
+    "axes.spines.top": False, "axes.spines.right": False,
+    "font.size": 14,
+})
+```
+
+## Three uses of AI that got me started
+
+:::: {.columns}
+::: {.column width="33%"}
+::: {.panel}
+[Small local models]{.panel-title}
+Turn a pile of documents into structured features for audience and market fit analysis.
+:::
+:::
+::: {.column width="33%"}
+::: {.panel .blue}
+[A technical collaborator]{.panel-title}
+ChatGPT and Claude Code helped me design and debug data systems I was never trained to build.
+:::
+:::
+::: {.column width="33%"}
+::: {.panel .clay}
+[Synthetic data]{.panel-title}
+Safe stand-ins that let people learn and test workflows without confidential records.
+:::
+:::
+::::
+
+::: {.fragment}
+Each one needs a different kind of checking.
+:::
+
+::: notes
+Most of what you hear about AI is about the biggest models. I use those, and I use them a lot. But the work I want to talk about mostly happened on a laptop, or inside a secure environment where the data could not go anywhere else. I want to separate three uses, because people lump them together and they should not. The value in every case came from matching the tool to the problem and then asking whether the output was good enough for the decision at hand.
+:::
+
+## The setting: Coleridge and the ADRF
+
+:::: {.columns}
+::: {.column width="55%"}
+State agency staff, linked administrative records, and policy questions.
+
+Workforce, postsecondary education, corrections, public benefits, and quarterly earnings.
+
+Training and reproducible materials in R, SQL, and Python.
+
+Administriative Data Research Facility -> FEDRAMP Secure AWS workspace
+:::
+::: {.column width="45%"}
+::: {.fragment}
+::: {.big-claim}
+The default rule: sensitive data does not leave the controlled environment and NO AI is allowed in.
+:::
+:::
+:::
+::::
+
+::: notes
+I was a senior research scientist on a team that built training and research products in the workforce, postsecondary, and corrections domains. Much of the work happens inside the Administrative Data Research Facility. So when I asked whether language models could help, the first question was not "which model is best?" It was "which model can I run without sending the text anywhere?" The other half of the job was training, so a lot of my AI use was about infrastructure and translation, not about asking a model to write a conclusion.
+:::
+
+## Before anyone fits a model
+
+::: {.big-claim}
+"Does the real world program work?"
+:::
+
+::: {.fragment}
+Define the cohort. 
+
+Pick a time origin. 
+
+Link records across systems that were never built to talk to each other. 
+
+Build pre- and post-program measures. 
+
+Decide what comparison answers the question.
+:::
+
+::: {.fragment .accent}
+The population at risk, the exposure window, the denominator.
+:::
+
+::: notes
+A typical project starts with a vague question. Demographers will recognize this as the problem we always have. Most of the intellectual work is here, and none of it is glamorous.
+:::
+
+## What "small model" means here
+
+:::: {.columns}
+::: {.column width="50%"}
+::: {.panel .blue}
+[Encoder models]{.panel-title}
+Sentence embeddings turn text into vectors. Zero-shot classifiers score text against labels you supply.
+
+Often a few hundred million parameters. Runs on a laptop GPU or a CPU. Deterministic and easy to audit.
+
+I used `all-MiniLM-L6-v2` for embeddings and `bart-large-mnli` for zero-shot.
+:::
+:::
+::: {.column width="50%"}
+::: {.panel}
+[Small generative models]{.panel-title}
+Roughly 0.6 to 9 billion parameters, quantized, served locally through Ollama or LM Studio. llama3.2:3b did wonders for me.
+
+I also tried `mistral:7b`, `qwen2.5:3b`, and `qwen3:0.6b`.
+
+Reached from R with `ellmer` and from Python with `ollama`. Same client code can point at a hosted endpoint later.
+:::
+:::
+::::
+
+::: notes
+Small does not only mean small chatbots. There are two families and they do different jobs. Ollama exposes local models through a REST API, so you can develop on sensitive data locally and keep the option to scale later on infrastructure you control. Switching between the generative models was one command-line flag, which made it cheap to compare them on the same documents.
+:::
+
+## The hardware was not a GPU cluster
+
+:::: {.columns}
+::: {.column width="50%"}
+::: {.panel}
+Remember: Small company with low resources!
+
+[Laptop 1]{.panel-title}
+RTX 4060, 8 GB of VRAM.
+
+Room for quantized models up to about 7 to 9B parameters.
+:::
+:::
+::: {.column width="50%"}
+::: {.panel .clay}
+[Laptop 2]{.panel-title}
+Integrated graphics, Lots of RAM.
+
+The 3B class, after new thermal paste so it would stop cooking itself.
+:::
+:::
+::::
+
+::: notes
+I mention the thermal paste because it is true and because it sets expectations. This is the kind of hardware most of you have.
+:::
+
+# Audience and market analysis {background-color="#032044"}
+
+## The question
+
+::: {.big-claim}
+Who is in the pool of people we train or want to reach?
+:::
+
+::: {.fragment}
+What skills and roles recur? Are there distinct groups that need different examples, training, or outreach?
+:::
+
+::: {.fragment .accent}
+The business use: find new training product opportunities.
+:::
+
+## Two corpora
+
+:::: {.columns}
+::: {.column width="50%"}
+::: {.panel}
+[Resumes and CVs]{.panel-title}
+Collected from past training classes on a shared drive.
+
+Who are our participants? Degrees, fields, titles, skills, sectors, years of experience.
+:::
+:::
+::: {.column width="50%"}
+::: {.panel .blue}
+[Application statements]{.panel-title}
+908 documents: 337 personal statements, 245 supervisor statements, 118 letters of support, and others.
+
+Why do they come, and what do they hope to learn?
+:::
+:::
+::::
+
+::: notes
+The resumes tell you who people are. The statements tell you why they apply. Together they describe demand, which is what a training product decision needs. Both were collected by scripts that searched the shared drive by filename, so the first question about either corpus is what the filename search missed.
+:::
+
+## The pipeline
+
+```{mermaid}
+%%| echo: false
+%%| fig-width: 11
+flowchart LR
+  A[PDF and DOCX<br/>resumes] --> B[Extract fields<br/>degree, field, titles,<br/>skills, sector, experience]
+  B --> C[persona_text<br/>short summary<br/>per person]
+  C --> D[Route 1<br/>zero-shot classification<br/>analyst labels]
+  C --> E[Route 2<br/>embeddings and<br/>clustering]
+  D --> F[Read, validate,<br/>name segments]
+  E --> F
+  classDef mid fill:#032044,color:#FFFFFF,stroke:#032044
+  classDef org fill:#F15A22,color:#032044,stroke:#F15A22
+  classDef mist fill:#C8DCFF,color:#032044,stroke:#265BF7
+  class A,B,C mid
+  class D,E mist
+  class F org
+```
+
+::: notes
+I built this in Python. Each document becomes a short text summary of the person, which the code called persona_text. Then I tried two routes to structure, and the difference between them is the most useful idea in this section. Clustering used k-means on the embeddings, with k chosen automatically by silhouette score over 3 to 11 clusters, and a t-SNE plot for a picture.
+:::
+
+## Two routes to structure
+
+:::: {.columns}
+::: {.column width="50%"}
+::: {.panel .blue}
+[Classify]{.panel-title}
+A zero-shot classifier scores each persona against labels such as sectors or role types.
+
+The analyst supplies the labels. The model does not invent them.
+
+Works when you already trust the taxonomy.
+:::
+:::
+::: {.column width="50%"}
+::: {.panel}
+[Discover]{.panel-title}
+An embedding model turns each persona into a vector. Clustering groups similar backgrounds.
+
+Then the real work: read common titles and skills, read representative resumes, name the groups.
+:::
+:::
+::::
+
+## "Can the classifier just make its own labels?"
+
+::: {.big-claim}
+No, and the reason is the lesson.
+:::
+
+::: {.fragment}
+Classifying against a fixed frame and discovering new categories are different measurement operations.
+:::
+
+::: {.fragment}
+If you want proposed labels, you need a different step: a generative model that names clusters, or an analyst who reads them.
+:::
+
+::: notes
+I asked this question myself partway through. Getting that distinction straight was worth more than any amount of tuning.
+:::
+
+## How the pipeline evolved {.wide-diagram}
+
+```{mermaid}
+%%| echo: false
+%%| fig-width: 11
+flowchart LR
+  A[Regex and<br/>keyword<br/>rules] --> B[Zero-shot<br/>classifier]
+  B --> C[Local<br/>0.6B to 7B<br/>models]
+  C --> D[Hosted<br/>Claude with<br/>redaction]
+  D --> E[Multi-agent<br/>review]
+  classDef mid fill:#032044,color:#FFFFFF,stroke:#032044
+  classDef mist fill:#C8DCFF,color:#032044,stroke:#265BF7
+  classDef org fill:#F15A22,color:#032044,stroke:#F15A22
+  class A,B,C mid
+  class D mist
+  class E org
+```
+
+::: {.fragment}
+Each step was a response to what the previous one got wrong.
+:::
+
+::: {.fragment .accent}
+Local first, then hosted when quality mattered more than the cost of redaction and review.
+:::
+
+::: notes
+This took about seven months, from October 2025 to May 2026. Rules were brittle. Zero-shot needed a taxonomy I did not have yet. The small local models could extract fields but made errors I will show you in a minute. For the final runs I used Claude Haiku for per-document extraction and Sonnet for synthesis, with a redaction step before any text left the machine. The decision to go hosted was a trade: better extraction against a new privacy obligation.
+:::
+
+## What went wrong
+
+:::: {.columns}
+::: {.column width="55%"}
+A Word file was silently skipped while the PDFs were processed. The corpus was smaller than I thought.
+
+Missing `persona_text` and `cluster` columns, because one step did not write what the next step expected.
+
+Python scope and indentation errors. This is what happens when an R person writes Python.
+
+One script never ran again after a bad paste: `MODEL = "mistral:7b"rom resume_files/...`
+:::
+::: {.column width="45%"}
+::: {.fragment}
+::: {.big-claim}
+The model call is the one part of the pipeline that almost never breaks.
+:::
+:::
+:::
+::::
+
+::: notes
+I show these failures on purpose. Applied AI pipelines spend far more time on file handling, schema consistency, and validation than on the model call. The model call rarely crashes. When it fails, it fails quietly, by being wrong, which is the next slide.
+:::
+
+## What the small model got wrong {.small-text}
+
+Five test resumes, two of them my own, run through `qwen3:0.6b`:
+
+| Cluster | n | Extracted "titles" |
+|---|---|---|
+| 0 | 2 | decision science leader, director-caliber, applied demography, **university of texas at san antonio, dr. corey sparks** |
+| 1 | 2 | assistant professor, associate professor, mentor, assistant researcher |
+| 2 | 1 | *(empty: every field "unknown")* |
+
+: {tbl-colwidths="[12,8,80]"}
+
+::: {.fragment}
+A name and an employer landed in the job titles field. One document produced nothing, and still got its own cluster.
+:::
+
+::: {.fragment .accent}
+Three clusters from five documents. The method ran. The answer meant nothing.
+:::
+
+::: notes
+This is real output from the local pipeline, on my own resumes, so I can show it. It is a 0.6 billion parameter model, the smallest I tried, so the errors are the point. The JSON was valid. Every field had the right type. Schema validation would have passed all of it. Only reading the rows shows the problem.
+:::
+
+## Prompting a small generative model
+
+When a generative model extracts fields or names clusters, the prompt has to fit the model.
+
+::: {.fragment}
+Short instructions. A small closed set of choices. Temperature zero. Structured output it cannot wander away from.
+:::
+
+::: {.fragment}
+Defensive plumbing around the call: a **repair pass** that sends malformed JSON back to the model to fix, and truncation that keeps the start and end of long resumes so the skills section survives.
+:::
+
+::: {.fragment .accent}
+Write a frontier-model prompt and a 3B model will ignore half of it.
+:::
+
+::: notes
+I learned the prompting lessons on a separate project, a voice note app built on llama3.2 3B, and then applied them here. Appendix B has the pattern in code. The repair pass is worth stealing: if the output does not parse, send it back with "fix this JSON" before giving up on the document.
+:::
+
+## The naming trap
+
+::: {.big-claim}
+"Experienced professionals seeking growth opportunities"
+:::
+
+::: {.fragment}
+Model-written segment descriptions drift toward generic marketing language that sounds plausible and says nothing.
+:::
+
+::: {.fragment}
+A multi-agent review with four roles: an orchestrator, a profiler, a strategist, and a **critic** whose only job is to flag vague claims, inconsistencies, and over-generalization.
+:::
+
+::: {.fragment .small-text}
+It ran on the real segmentation outputs, with hosted models: Claude Sonnet for the orchestrator, profiler, and critic, and Opus for the strategist. Its job was to review what the other models produced.
+:::
+
+::: notes
+The critic is a model checking a model. That helps, but it is not validation. It catches generic language well. It cannot tell you whether a segment exists in the population, because it only sees what the earlier models wrote.
+:::
+
+# Evaluation, honestly {background-color="#032044"}
+
+## Read your outputs
+
+Small scale and mostly manual: I read outputs, compared labels with my own judgment on samples, and kept notes on the failures.
+
+::: {.fragment}
+Names and employers in the wrong fields. Empty extractions that still get clustered. Fluent persona descriptions that would fit anyone.
+:::
+
+::: {.fragment .accent}
+Every automated metric you build later formalizes judgments like these. If you never made them by hand, you do not know what the metric measures.
+:::
+
+## Checks for clustering
+
+:::: {.columns}
+::: {.column width="50%"}
+Count the files read against the files you meant to read.
+
+Look at the extracted text for several documents. Extraction fails quietly.
+
+Compare cluster assignments with the actual resumes.
+:::
+
+::: notes
+On extraction: every script ran four PDF libraries, pdfminer, pdfplumber, PyMuPDF, and pypdf, and kept whichever returned the most text. That catches a library that returns nothing. It does not catch one that returns a lot of garbled text, because the longest output is not always the right one.
+:::
+::: {.column width="50%"}
+Look for duplicate profiles.
+
+Change the number of clusters. Do the groups stay interpretable or dissolve?
+
+Do the segments answer a real training or outreach question?
+:::
+::::
+
+## A model-generated label is a measurement
+
+::: {.big-claim}
+Measurements have error.
+:::
+
+::: {.fragment}
+Build a hand-coded validation sample. Compute a misclassification matrix. Report precision and recall **by category**.
+:::
+
+::: {.fragment}
+A classifier that is 90 percent accurate overall can still be useless for the one category you care about.
+:::
+
+::: {.fragment .accent}
+A cluster with a convincing name is a hypothesis about a social type, not evidence that the type exists.
+:::
+
+## The cohort year was a file timestamp
+
+```{python}
+#| label: year-from-mtime
+#| echo: false
+# Document counts by "year" in statements_themes.csv (user_seg repo).
+# The year was taken from each file's modification time.
+years = ["pre-2020", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]
+counts = [175, 13, 217, 217, 0, 154, 117, 15]
+
+fig, ax = plt.subplots(figsize=(10, 3.6))
+bars = ax.bar(years, counts, color=UTSA["midnight"])
+bars[4].set_color(UTSA["orange"])
+ax.bar_label(bars, labels=[str(c) if c else "" for c in counts], padding=3)
+ax.text(4, 8, "none", ha="center", color=UTSA["accessible_orange"], fontweight="bold")
+ax.set_ylabel("Documents")
+ax.set_ylim(0, 250)
+plt.tight_layout()
+plt.show()
+```
+
+::: {.fragment}
+The model then wrote confident trend claims: "the 2021 cohort marks a visible inflection point."
+:::
+
+::: {.fragment .accent}
+The data problem was upstream of every model.
+:::
+
+::: notes
+The statement pipeline grouped documents into cohorts by the file's last-modified date, because that was the only date every file had. That date records when someone saved or uploaded the file, not when the person applied. There is no 2023 at all, and 2020 has 13 documents next to 217 in 2021. Then Claude Sonnet wrote a fluent cross-cohort narrative on top of those years. The narrative is only as good as the year variable, and nothing in the output warns you.
+:::
+
+## Local is not a license
+
+Running locally keeps document text away from hosted services. That shortens the governance conversation a lot.
+
+::: {.fragment .big-claim}
+PII on your laptop is still PII.
+:::
+
+## Redaction is a process, not a function
+
+When the pipeline moved to a hosted model, I wrote a redaction step: emails, phones, URLs, addresses, and person names via spaCy.
+
+::: {.fragment}
+Names still got through, in two places:
+:::
+
+::: {.fragment}
+The output file saved the first 2,000 characters of each resume **before** redaction.
+
+The statement script asked the model to return each applicant's name, so the model-written summaries name real people.
+:::
+
+::: {.fragment .accent}
+Check every place text is written, not just the place it is sent.
+:::
+
+::: notes
+The redaction function worked. The problem was everything around it. One script redacted the text it sent to the API but wrote the raw text to the output CSV. Another asked for person_name as a field, which defeats redaction by design. That is why I am not showing you any of the statement summaries today.
+:::
+
+# AI as a collaborator in data engineering {background-color="#032044"}
+
+## It compressed the learning cycle
+
+My training is in demography and anthropology, not data engineering.
+
+::: {.fragment}
+Designing tables. Translating among R, SQL, and Python. Debugging Redshift queries against large administrative schemas. SQL to `dbplyr` translations that did not match at first.
+:::
+
+
+::: {.fragment}
+All in the ADRF, LOTS of screenshots of schemas and small spreadsheet examples.
+:::
+
+::: {.fragment .accent}
+The assistant proposed code and explained errors. I still had to set the grain of every table, decide which tables have primacy, and decide who belonged in the cohort.
+:::
+
+## The wage window bug {.tiny-code}
+
+:::: {.columns}
+::: {.column width="50%"}
+Looks right, is wrong
+
+```sql
+-- starts from the program table
+SELECT p.person_id,
+  COALESCE(SUM(w.wages), 0)
+    AS post_wages
+FROM program p
+LEFT JOIN wages w
+  ON w.person_id = p.person_id
+ AND w.quarter BETWEEN
+     p.exit_qtr + 1 AND p.exit_qtr + 4
+GROUP BY p.person_id;
+-- people with no program record
+-- later become zeros
+```
+:::
+::: {.column width="50%"}
+Matches the design
+
+```sql
+-- starts from the cohort
+SELECT c.person_id,
+  SUM(w.wages)   AS post_wages,
+  COUNT(w.wages) AS n_qtrs
+FROM cohort c
+LEFT JOIN wages w
+  ON w.person_id = c.person_id
+ AND w.quarter BETWEEN
+     c.ref_qtr + 1 AND c.ref_qtr + 4
+GROUP BY c.person_id;
+-- common reference quarter,
+-- missing stays missing
+```
+:::
+::::
+
+::: notes
+The query ran and the numbers looked reasonable. But people without a particular program key got zero wages, because the wage calculation started from the program table. The fix is a data design decision, not a syntax trick. Table names here are invented for illustration.
+:::
+
+## How big is the damage? A simulation
+
+```{python}
+#| label: sim-wage-bug
+#| echo: false
+rng = np.random.default_rng(2026)
+n, effect = 2000, 1200                      # known effect: $1,200 per quarter
+cohort = pd.DataFrame({"person_id": range(n),
+                       "participant": rng.random(n) < 0.4,
+                       "base": rng.normal(6000, 1500, n)})
+
+# Four post-period quarters; about 10% of person-quarters have no covered wages
+wages = cohort.loc[cohort.index.repeat(4)].assign(q=np.tile(range(1, 5), n))
+wages["wages"] = wages["base"] + effect * wages["participant"] + rng.normal(0, 800, len(wages))
+wages = wages[rng.random(len(wages)) > 0.10][["person_id", "q", "wages"]]
+
+# Buggy: compute wages from the program table, then fill everyone else with 0
+program = cohort[cohort["participant"]]
+buggy = (program.merge(wages, on="person_id").groupby("person_id")["wages"].mean()
+         .reindex(cohort["person_id"]).fillna(0))
+
+# Correct: compute wages for the full cohort, keep missing as missing
+correct = wages.groupby("person_id")["wages"].mean().reindex(cohort["person_id"])
+
+res = pd.DataFrame({
+    "Version": ["Starts from program table", "Starts from cohort"],
+    "Mean, nonparticipants": [buggy[~cohort["participant"].values].mean(),
+                              correct[~cohort["participant"].values].mean()],
+    "Mean, participants":    [buggy[cohort["participant"].values].mean(),
+                              correct[cohort["participant"].values].mean()],
+})
+res["Estimated effect"] = res["Mean, participants"] - res["Mean, nonparticipants"]
+
+fig, ax = plt.subplots(figsize=(10, 4.2))
+bars = ax.barh(res["Version"], res["Estimated effect"],
+               color=[UTSA["orange"], UTSA["midnight"]])
+ax.axvline(effect, color=UTSA["talavera_blue"], linestyle="--", linewidth=2)
+ax.text(effect, 1.45, f" true effect = ${effect:,}", color=UTSA["talavera_blue"], va="center")
+ax.bar_label(bars, labels=[f"${v:,.0f}" for v in res["Estimated effect"]], padding=6)
+ax.set_xlabel("Estimated quarterly wage difference, participants minus nonparticipants ($)")
+ax.set_xlim(0, res["Estimated effect"].max() * 1.2)
+plt.tight_layout()
+plt.show()
+```
+
+::: notes
+This is a synthetic cohort with a known effect, so we can see exactly how wrong the buggy query is. Every nonparticipant gets a zero, and the "effect" becomes the whole wage level. Nothing in the query errors out. It just answers a different question.
+:::
+
+## The lesson from the bug
+
+::: {.big-claim}
+A query that runs is the first check. A query that runs and gives plausible numbers is the dangerous one.
+:::
+
+::: {.fragment}
+The model supplied candidate code and explanations. Domain knowledge and validation decided whether the result meant what we thought it meant.
+:::
+
+::: {.fragment}
+Best to compare notes with domain experts and data providers. 
+:::
+
+
+# Synthetic data as infrastructure {background-color="#032044"}
+
+## Made up on purpose
+
+:::: {.columns}
+::: {.column width="50%"}
+Person tables, program participation, quarterly wages, monthly benefit histories, and related fact tables.
+
+Corrections trends files for 2021 and 2022 with set category distributions, seasonal admissions, and controlled missingness.
+:::
+::: {.column width="50%"}
+::: {.panel}
+[The goal]{.panel-title}
+Not fake records that look like real people.
+
+Reproduce the **analytical problems** learners will face: joins at different grains, time windows, missing values, models, and write-ups.
+:::
+:::
+::::
+
+## Build in a known answer
+
+The wage simulation earlier is the pattern: put an effect in, then see whether the analysis gets it out.
+
+::: {.fragment .accent}
+If the analysis cannot recover an effect you put there yourself, something is wrong with the analysis.
+:::
+
+::: {.fragment .small-text}
+I also explored formal synthesizers for mixed data, including a GAN workflow in R. That was method exploration, not something delivered to a partner. Hand-built simulations, statistical synthesizers, and generative models all make "synthetic data," but they have different goals and need different validation. 
+:::
+
+::: {.fragment}
+Synthetic data will *always* have weird edge cases because of dimensionality.
+:::
+
+## Checks for synthetic data
+
+:::: {.columns}
+::: {.column width="50%"}
+Are the tables internally consistent, and do the keys join as intended?
+
+Are the time sequences possible? Nobody is released before admission.
+
+Are marginals and missingness close to the design?
+:::
+::: {.column width="50%"}
+Does the analysis recover the effect you built in?
+
+Is the file labeled so nobody mistakes it for observed evidence?
+:::
+::::
+
+# What it all adds up to {background-color="#032044"}
+
+## Constraints cut both ways
+
+:::: {.columns}
+::: {.column width="50%"}
+::: {.panel .clay}
+[The costs]{.panel-title}
+No resources to scale the hardware or the labeling.
+
+Errors that larger models would not make.
+
+No hard number on business value.
+:::
+:::
+::: {.column width="50%"}
+::: {.panel .blue}
+[What they bought]{.panel-title}
+In the local phase, nothing left the machine.
+
+Near-zero cost per run, so unlimited iteration.
+
+Visible failures forced structure: fixed categories, schemas, validation, review queues.
+:::
+:::
+::::
+
+::: notes
+You should build that structure around large models anyway, where the failures are rarer and harder to see. When I did move to hosted models for the final runs, the structure built for the small models came along: the same schemas, the same validation, plus redaction.
+:::
+
+## Build things all the time
+::: {.fragment .accent}
+An MCP server in Python over a SQLite workforce database. The assistant calls structured queries as tools to extract real summaries instead of guessing.
+:::
+
+::: {.fragment .accent}
+Give the model tools rather than asking it to know things.
+:::
+
+::: {.fragment .accent}
+Local code completion in VS Code and Positron through Continue, mixing local and hosted models.
+:::
+
+::: {.fragment .accent}
+Dashboards for every project!!
+:::
+
+## Five takeaways
+
+::: {.incremental}
+1. The model is rarely the whole workflow.
+2. Small local models are good at bounded tasks.
+3. AI widens who can build technical systems, but you still have to understand the system.
+4. Synthetic data are a teaching and testing tool that needs design and validation.
+5. Judge applied ML by the decision it supports.
+:::
+
+::: {.fragment .big-claim}
+And read your outputs.
+:::
+
+## Thank you
+
+::: {.big-claim}
+Corey Sparks
+:::
+
+Department of Sociology and Demography, UT San Antonio
+
+**Email:** [corey.sparks@utsa.edu](mailto:corey.sparks@utsa.edu)
+
+**GitHub:** [github.com/coreysparks](https://github.com/coreysparks)
+
+**LinkedIn:** [linkedin.com/in/corey-sparks-ph-d](https://www.linkedin.com/in/corey-sparks-ph-d/)
+
+
+## Questions for discussion {.small-text}
+
+If a cluster of resumes has a convincing name, what evidence would make you trust it is a real audience segment and not an artifact of the embedding model and the number of clusters?
+
+Which parts of a pipeline can an assistant propose, and which decisions need someone who knows the policy setting and the source data?
+
+If a model-derived label goes into a regression as a predictor, what happens to your estimates when it is misclassified, and how would you correct for it?
+
+How would you test whether a synthetic dataset is good enough for teaching without letting it pass as real evidence?
+
+When does running a model locally actually change the privacy story, and what risks remain?
+
+# Appendix {background-color="#032044"}
+
+## A: Embedding, clustering, and zero-shot classification {.tiny-code}
+
+```{python}
+#| label: appendix-embed-cluster
+#| eval: false
+# pip install sentence-transformers transformers scikit-learn polars
+import polars as pl
+from sentence_transformers import SentenceTransformer
+from sklearn.cluster import KMeans
+from transformers import pipeline
+
+profiles = pl.DataFrame({"id": [1, 2, 3, 4], "persona_text": [
+    "MS statistics; data analyst at state workforce agency; SQL, R, Tableau",
+    "BA criminal justice; program coordinator in corrections reentry",
+    "PhD economics; research scientist; Python, Stata, causal inference",
+    "BS information systems; database administrator; Oracle, ETL, Python"]})
+
+# Route 1: classification against analyst-supplied labels
+zsc = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
+labels = ["data analysis", "program operations", "research", "data engineering"]
+profiles = profiles.with_columns(pl.Series("top_label",
+    [zsc(t, candidate_labels=labels)["labels"][0] for t in profiles["persona_text"]]))
+
+# Route 2: discovery
+X = SentenceTransformer("all-MiniLM-L6-v2").encode(
+    profiles["persona_text"].to_list(), normalize_embeddings=True)
+profiles = profiles.with_columns(pl.Series(
+    "cluster", KMeans(n_clusters=2, n_init=10, random_state=42).fit_predict(X)))
+```
+
+::: {.small-text}
+A simplified sketch with the same models the project used. The profiles and labels are invented.
+:::
+
+## B: Constrained classification with a small generative model {.tiny-code}
+
+```{python}
+#| label: appendix-ollama-json
+#| eval: false
+# pip install ollama pydantic
+from typing import Literal
+import ollama
+from pydantic import BaseModel, ValidationError
+
+class Label(BaseModel):
+    sentiment: Literal["positive", "neutral", "negative", "mixed"]
+    topic: Literal["content", "access", "support", "cost", "other"]
+    confidence: float
+
+SYSTEM = ("Classify the comment. Use only the allowed values. "
+          "Use 'mixed' if the comment is both positive and negative. Return JSON only.")
+
+def classify(text: str, model: str = "llama3.2:3b") -> dict:
+    resp = ollama.chat(model=model,
+        messages=[{"role": "system", "content": SYSTEM},
+                  {"role": "user", "content": text}],
+        format=Label.model_json_schema(),   # constrain output to the schema
+        options={"temperature": 0})         # same input, same output
+    try:
+        return Label.model_validate_json(resp.message.content).model_dump() | {"valid": True}
+    except ValidationError:
+        return {"valid": False}             # route to a review queue
+```
+
+The R version follows the same logic with `ellmer::chat_ollama()`.
