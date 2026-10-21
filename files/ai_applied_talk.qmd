@@ -781,8 +781,6 @@ The script ran in ChatGPT's code environment, and I can still regenerate the pub
 | Race | 39 / 39 / 19 / about 1 each | exact |
 | Facility policies | 20% female-only, 30% mixed | 4, 6, and 10 of 20 |
 | Security level | 18 / 43 / 34 | 18.9 / 45.3 / 35.8 |
-| Number of facilities | 100 of about 1,000 | **20** of about 1,000 |
-| Maximum-only facilities | 3 | **0** |
 | Men more often in maximum | about 20% more likely | **18.9% vs. 19.1% for women** |
 
 : {tbl-colwidths="[30,35,35]"}
@@ -792,52 +790,17 @@ Every marginal matched. My security percentages summed to 95, and the model resc
 :::
 
 ::: {.fragment .accent}
-The structural and conditional requirements are where it fell short, and nothing told me.
+The structural and conditional requirements are where it fell short, this is the hard part.
+:::
+
+::: {.fragment .accent}
+Check the relationship, not the margin
 :::
 
 ::: notes
 The rescaling is noted in one code comment and one printed label. The code comment on facility size says "keep near 1000 per facility on average": it kept the average and dropped the count. The quality checks the model wrote at the end print the marginals, the ones it hit. Nothing checks the rules it dropped. The model also made choices I never asked for: the offense mix, the 2010 to 2025 window, a 1.3 times summer boost, and 60 percent paroled within 30 to 3,650 days.
 :::
 
-
-## Check the relationship, not the margin
-
-```{python}
-#| label: sec-by-sex
-#| echo: false
-# Share in maximum security by sex. "Got" is from correctional_trends_synthetic_v4.csv.
-# "Asked" solves 0.92*m + 0.08*f = 18.9 (the overall share) with m = 1.2*f.
-sexes = ["Women", "Men"]
-got = [19.1, 18.9]
-f = 18.9 / (0.92 * 1.2 + 0.08)
-asked = [f, 1.2 * f]
-
-x = np.arange(len(sexes))
-fig, ax = plt.subplots(figsize=(10, 3.6))
-b1 = ax.bar(x - 0.2, asked, 0.38, color=UTSA["river_mist"], edgecolor=UTSA["talavera_blue"],
-            hatch="//", label="Asked: men about 20% more likely")
-b2 = ax.bar(x + 0.2, got, 0.38, color=UTSA["midnight"], label="Got")
-ax.bar_label(b1, labels=[f"{v:.1f}%" for v in asked], padding=3)
-ax.bar_label(b2, labels=[f"{v:.1f}%" for v in got], padding=3)
-ax.set_xticks(x, sexes)
-ax.set_ylabel("In maximum security (%)")
-ax.set_ylim(0, 25)
-ax.legend(frameon=False, loc="upper left")
-plt.tight_layout()
-plt.show()
-```
-
-::: {.fragment}
-Parole was drawn independently of everything else. Facility parole rates run from 57.7% to 63.2%, and every bit of that spread is noise.
-:::
-
-::: {.fragment .accent}
-A dashboard comparing facilities is reading noise.
-:::
-
-::: notes
-The overall marginal is identical in both versions, so no marginal check can tell them apart. Only a cross-tab can. The parole point matters for teaching: the dashboards course asks learners to compare facilities, and the data guarantee that any difference they find means nothing. That is fine if they know it, and a trap if they do not.
-:::
 
 ## Every record is legal. The dataset is not.
 
