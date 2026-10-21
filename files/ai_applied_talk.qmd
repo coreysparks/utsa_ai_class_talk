@@ -28,6 +28,9 @@ jupyter: python3
 # Still open: the number of resumes in the full cv_resume run (not in the local repo).
 # Do not show anything from statements_summary_report.* or personas_summary.csv:
 # the model-written summaries name real applicants.
+# Synthetic data numbers come from correctional_trends_synthetic_v4.csv and
+# generate_correctional_trends_synthetic_v4_original.py (csg intro dashboards repo)
+# and from the synth_health_data repo. Remove the .confirm boxes once each item is settled.
 # Press "s" during the talk to open speaker notes.
 ---
 
@@ -75,7 +78,7 @@ ChatGPT and Claude Code helped me design and debug data systems I was never trai
 ::: {.column width="33%"}
 ::: {.panel .clay}
 [Synthetic data]{.panel-title}
-Safe stand-ins that let people learn and test workflows without confidential records.
+AI-generated stand-ins that carried two analyst training courses without confidential records.
 :::
 :::
 ::::
@@ -674,9 +677,9 @@ Best to compare notes with domain experts and data providers.
 
 :::: {.columns}
 ::: {.column width="50%"}
-Person tables, program participation, quarterly wages, monthly benefit histories, and related fact tables.
+**Corrections.** 20,000 residents in 20 fictitious facilities: sex, race, offense, security level, admission and parole dates. Two 2,000-row yearly samples with missing values put in on purpose.
 
-Corrections trends files for 2021 and 2022 with set category distributions, seasonal admissions, and controlled missingness.
+**Medicaid.** 10,000 members with inpatient claims made messy on purpose: split claims, duplicate rows, dates that disagree.
 :::
 ::: {.column width="50%"}
 ::: {.panel}
@@ -688,38 +691,189 @@ Reproduce the **analytical problems** learners will face: joins at different gra
 :::
 ::::
 
-## Build in a known answer
-
-The wage simulation earlier is the pattern: put an effect in, then see whether the analysis gets it out.
-
-::: {.fragment .accent}
-If the analysis cannot recover an effect you put there yourself, something is wrong with the analysis.
+::: notes
+Two datasets, both simulated from rules I wrote. Nothing here was fitted to real records, which matters for what I can claim about them later. The corrections data is the one I want to spend time on, because I can show you exactly how it was made.
 :::
 
-::: {.fragment .small-text}
-I also explored formal synthesizers for mixed data, including a GAN workflow in R. That was method exploration, not something delivered to a partner. Hand-built simulations, statistical synthesizers, and generative models all make "synthetic data," but they have different goals and need different validation. 
+## One dataset, multiple courses
+
+:::: {.columns}
+::: {.column width="50%"}
+::: {.panel .blue}
+[Automated reporting]{.panel-title}
+Read the same data from CSV, Excel, and SQLite. Recode the missing values. Render one parameterized report per facility. Schedule the builds.
+:::
+:::
+::: {.column width="50%"}
+::: {.panel}
+[Dashboards]{.panel-title}
+Value boxes, ggplot2 and gt, then plotly and DT, then Shiny. Five lessons on the same 20,000 rows.
+:::
+:::
+::::
+
+::: {.fragment}
+Once it fed three courses, the schema was frozen. When the funder asked for "sex" instead of "gender," we relabeled every display and never renamed the column.
+:::
+
+::: {.fragment .accent}
+A teaching dataset becomes infrastructure. Its design decisions last.
+:::
+
+
+::: notes
+Both courses are for corrections analysts in the Advancing Data in Corrections Academy, built at Coleridge. The reporting course uses the 2021 file with its missing values for data import and cleaning, and the full file for parameterized facility reports. The dashboards course uses the full file in every lesson. The gender column is the small story I like best: an editor pointed out that the funder does not use "gender," and by then every lesson's code depended on that column name.
+:::
+
+## Three prompts, one dataset
+
+I wrote the specification in plain language over three prompts. ChatGPT wrote and ran the generator.
+
+:::: {.columns}
+::: {.column width="33%"}
+::: {.panel}
+[Marginals]{.panel-title}
+92% male. Race 39 / 39 / 19, about 1% for each other group. Security 18 / 43 / 34.
+:::
+:::
+::: {.column width="33%"}
+::: {.panel .blue}
+[Structure]{.panel-title}
+One row per person. 100 facilities of about 1,000 people. Female-only, male-only, and mixed facilities. Three maximum-only facilities.
+:::
+:::
+::: {.column width="33%"}
+::: {.panel .clay}
+[Conditional]{.panel-title}
+Men about 20% more likely than women to be in maximum security.
+:::
+:::
+::::
+
+::: {.fragment .accent}
+The result was plausible, ran cleanly, and passed its own checks.
+:::
+
+::: notes
+The script ran in ChatGPT's code environment, and I can still regenerate the published file from it row for row. The three prompts asked for three different kinds of things: marginal percentages, structural rules about facilities, and one conditional relationship. That split turns out to be exactly where the model succeeded and where it did not.
+:::
+
+## What I asked for, what I got {.small-text}
+
+| Requirement | Asked | Got |
+|---|---|---|
+| Sex | 92% male | 92% male |
+| Race | 39 / 39 / 19 / about 1 each | exact |
+| Facility policies | 20% female-only, 30% mixed | 4, 6, and 10 of 20 |
+| Security level | 18 / 43 / 34 | 18.9 / 45.3 / 35.8 |
+| Number of facilities | 100 of about 1,000 | **20** of about 1,000 |
+| Maximum-only facilities | 3 | **0** |
+| Men more often in maximum | about 20% more likely | **18.9% vs. 19.1% for women** |
+
+: {tbl-colwidths="[30,35,35]"}
+
+::: {.fragment}
+Every marginal matched. My security percentages summed to 95, and the model rescaled them without asking.
+:::
+
+::: {.fragment .accent}
+The structural and conditional requirements are where it fell short, and nothing told me.
+:::
+
+::: notes
+The rescaling is noted in one code comment and one printed label. The code comment on facility size says "keep near 1000 per facility on average": it kept the average and dropped the count. The quality checks the model wrote at the end print the marginals, the ones it hit. Nothing checks the rules it dropped. The model also made choices I never asked for: the offense mix, the 2010 to 2025 window, a 1.3 times summer boost, and 60 percent paroled within 30 to 3,650 days.
+:::
+
+
+## Check the relationship, not the margin
+
+```{python}
+#| label: sec-by-sex
+#| echo: false
+# Share in maximum security by sex. "Got" is from correctional_trends_synthetic_v4.csv.
+# "Asked" solves 0.92*m + 0.08*f = 18.9 (the overall share) with m = 1.2*f.
+sexes = ["Women", "Men"]
+got = [19.1, 18.9]
+f = 18.9 / (0.92 * 1.2 + 0.08)
+asked = [f, 1.2 * f]
+
+x = np.arange(len(sexes))
+fig, ax = plt.subplots(figsize=(10, 3.6))
+b1 = ax.bar(x - 0.2, asked, 0.38, color=UTSA["river_mist"], edgecolor=UTSA["talavera_blue"],
+            hatch="//", label="Asked: men about 20% more likely")
+b2 = ax.bar(x + 0.2, got, 0.38, color=UTSA["midnight"], label="Got")
+ax.bar_label(b1, labels=[f"{v:.1f}%" for v in asked], padding=3)
+ax.bar_label(b2, labels=[f"{v:.1f}%" for v in got], padding=3)
+ax.set_xticks(x, sexes)
+ax.set_ylabel("In maximum security (%)")
+ax.set_ylim(0, 25)
+ax.legend(frameon=False, loc="upper left")
+plt.tight_layout()
+plt.show()
+```
+
+::: {.fragment}
+Parole was drawn independently of everything else. Facility parole rates run from 57.7% to 63.2%, and every bit of that spread is noise.
+:::
+
+::: {.fragment .accent}
+A dashboard comparing facilities is reading noise.
+:::
+
+::: notes
+The overall marginal is identical in both versions, so no marginal check can tell them apart. Only a cross-tab can. The parole point matters for teaching: the dashboards course asks learners to compare facilities, and the data guarantee that any difference they find means nothing. That is fine if they know it, and a trap if they do not.
+:::
+
+## Every record is legal. The dataset is not.
+
+**Temporal consistency.** Nobody is paroled before admission. But 59% of people admitted in the first half of 2025 were already paroled by August 5, 2025, because the delay could never exceed the time elapsed.
+
+::: {.fragment}
+**Unit of analysis.** One row per person, as asked. But facilities are a unit too, and 20 instead of 100 turns any facility-level comparison from a distribution into a handful.
+:::
+
+::: {.fragment .accent}
+Row-by-row checks cannot see either problem. They live across rows and over time.
 :::
 
 ::: {.fragment}
 Synthetic data will *always* have weird edge cases because of dimensionality.
 :::
 
-## Checks for synthetic data
+::: notes
+The 2025 problem is the same shape as the cohort-year problem in the statement data: a date variable that is technically valid and substantively wrong. A real system would show most recent admissions still in custody, so any time-to-parole analysis on recent cohorts is distorted.
+:::
 
-:::: {.columns}
+## The lesson from the generator
+
+::: {.big-claim}
+Synthetic data generation requires more than inspecting marginal distributions.
+:::
+
+::: {.fragment}
+I gave the model marginals, structural constraints, and a conditional relationship in plain language. It produced a plausible dataset that did not implement every requirement.
+:::
+
+:::: {.columns .fragment}
 ::: {.column width="50%"}
-Are the tables internally consistent, and do the keys join as intended?
+**Conditional relationships.** Cross-tab every dependency you asked for, and look for ones you did not.
 
-Are the time sequences possible? Nobody is released before admission.
-
-Are marginals and missingness close to the design?
+**Structural restrictions.** Facility rules, keys, and joins hold as designed.
 :::
 ::: {.column width="50%"}
-Does the analysis recover the effect you built in?
+**Temporal consistency.** Sequences are possible, and plausible near the edges of the window.
 
-Is the file labeled so nobody mistakes it for observed evidence?
+**Unit of analysis.** One row per what, and how many of each higher-level unit.
 :::
 ::::
+
+::: {.fragment .small-text}
+Then check that marginals and missingness match the design, and label the file so nobody mistakes it for observed evidence.
+:::
+
+::: notes
+This is the same lesson as the qwen3 output and the wage bug. Valid output is not correct output. The model checked what it got right, so the validation has to come from the person who wrote the specification.
+:::
 
 # What it all adds up to {background-color="#032044"}
 
@@ -775,7 +929,7 @@ Dashboards for every project!!
 1. The model is rarely the whole workflow.
 2. Small local models are good at bounded tasks.
 3. AI widens who can build technical systems, but you still have to understand the system.
-4. Synthetic data are a teaching and testing tool that needs design and validation.
+4. Synthetic data need validation beyond the marginals.
 5. Judge applied ML by the decision it supports.
 :::
 
@@ -806,7 +960,7 @@ Which parts of a pipeline can an assistant propose, and which decisions need som
 
 If a model-derived label goes into a regression as a predictor, what happens to your estimates when it is misclassified, and how would you correct for it?
 
-How would you test whether a synthetic dataset is good enough for teaching without letting it pass as real evidence?
+A synthetic dataset matches every marginal you asked for. What else would you check before you teach with it, and how would you keep it from passing as real evidence?
 
 When does running a model locally actually change the privacy story, and what risks remain?
 
