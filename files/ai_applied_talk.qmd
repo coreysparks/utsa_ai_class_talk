@@ -60,6 +60,21 @@ mpl.rcParams.update({
 })
 ```
 
+## My Background
+
+::: {.fragment}
+Biological Anthropologist first, then statistics
+:::
+
+::: {.fragment}
+Left academia in 2023 for greener pastures....
+_VERY_ interesting industry experience
+:::
+
+::: {.fragment}
+Professor of Demography
+Focus on Bayesian models and use of AI tools
+:::
 ## Three uses of AI that got me started
 
 :::: {.columns}
