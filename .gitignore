@@ -1,0 +1,20 @@
+# macOS
+.DS_Store
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Quarto render byproducts (the slides use embed-resources, so the .html stands alone)
+.quarto/
+_freeze/
+*_files/
+/.luarc.json
+
+# Archive of files/ kept outside version control
+files.zip
+
+# Secrets
+.env
